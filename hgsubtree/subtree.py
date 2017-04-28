@@ -15,7 +15,9 @@ default_merge_comment   = 'subtree: update {name}'
 cmdtable = {}
 command = cmdutil.command(cmdtable)
 
-@command('subpull|sp', [], _('hg subpull [OPTIONS]'))
+@command('subpull|sp', [('e', 'edit', False, 'invoke editor on commit messages'),
+                        ('r', 'rev',  '',    'use this revision instead of the one specified in the config')],
+         _('hg subpull [OPTIONS]'))
 def subpull(ui, repo, name = '', **opts):
     """Pull subtree(s)"""
 
@@ -40,6 +42,7 @@ def subpull(ui, repo, name = '', **opts):
         names = subtrees.keys()
 
     origin = str(repo[None])
+    commit_opts = { 'edit': opts['edit'] }
 
     for name in names:
         subtree = subtrees[name]
@@ -47,11 +50,13 @@ def subpull(ui, repo, name = '', **opts):
             raise error.Abort('No destination found for %s' % name)
 
         # pull and update -C
-        opts = {}
+        pull_opts = {}
         if 'rev' in subtree:
-            opts['rev'] = [subtree['rev']]
+            pull_opts['rev'] = [subtree['rev']]
+        if opts['rev']:
+            pull_opts['rev'] = opts['rev']
         tip = repo['tip']
-        commands.pull(ui, repo, source = subtree['source'], force = True, **opts)
+        commands.pull(ui, repo, source = subtree['source'], force = True, **pull_opts)
         if tip == repo['tip']:
             ui.status("No changes, nothing for subtree to do")
             continue
@@ -63,12 +68,18 @@ def subpull(ui, repo, name = '', **opts):
             os.makedirs(destination)
         manifest = [x for x in repo[None].manifest()]
         manifest.append(destination)
-        commands.rename(ui, repo, *manifest)
-        commands.commit(ui, repo, message=ui.config('subtree', 'move', default_move_comment).format(name=name, destination=destination))
+        commands.rename(ui, repo, *manifest, force = False)
+        commands.commit(ui, repo,
+                        message=ui.config('subtree', 'move', default_move_comment).format(name=name, destination=destination),
+                        **commit_opts)
         merge_commit = str(repo[None])
+
+        # update to original and merge with the new
         commands.update(ui, repo, origin[:12])
         commands.merge(ui, repo, merge_commit[:12])
-        commands.commit(ui, repo, message=ui.config('subtree', 'merge', default_merge_comment).format(name=name))
+        commands.commit(ui, repo,
+                        message=ui.config('subtree', 'merge', default_merge_comment).format(name=name),
+                        **commit_opts)
         origin = repo[None]
 
 def _parse_hgsubtree(fn):
