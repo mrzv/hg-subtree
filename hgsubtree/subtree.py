@@ -33,7 +33,6 @@ def subpull(ui, repo, name = '', **opts):
     # parse .hgsubtree
     hgsubtree = ui.config('subtree', 'hgsubtree', default = default_hgsubtree)
     subtrees = _parse_hgsubtree(os.path.join(repo.root, hgsubtree))
-    print(subtrees)
 
     # if names not in .hgsubtree, abort
     # if names is empty, go through all repos in .hgsubtree
