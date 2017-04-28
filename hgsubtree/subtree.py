@@ -6,10 +6,12 @@ from mercurial import hg, util, commands, cmdutil, error
 from mercurial.i18n import _
 
 import os, ConfigParser
+from fnmatch     import fnmatch
+from collections import defaultdict
 
 # configurable via subtree/hgsubtree in hgrc
 default_hgsubtree       = '.hgsubtree'
-default_move_comment    = 'subtree: move {name} to {destination}'
+default_move_comment    = 'subtree: move {name}'
 default_merge_comment   = 'subtree: update {name}'
 
 cmdtable = {}
@@ -62,15 +64,42 @@ def subpull(ui, repo, name = '', **opts):
             continue
         commands.update(ui, repo, 'tip', clean = True)
 
-        # mkdir + rename
-        destination = subtree['destination']
-        if not os.path.exists(destination):
-            os.makedirs(destination)
-        manifest = [x for x in repo[None].manifest()]
-        manifest.append(destination)
-        commands.rename(ui, repo, *manifest, force = False)
+        # move or delete
+        destinations = _destinations(subtree['destination'])
+
+        # create directories
+        for dest in destinations:
+            if dest[0] == 'mkdir' and not os.path.exists(dest[1]):
+                os.makedirs(dest[1])
+
+        # resolve move, copy, and delete operations
+        destinations = [dest for dest in destinations if dest[0] == 'mv' or dest[0] == 'cp']
+        move_targets = defaultdict(list)
+        copy_targets = defaultdict(list)
+        remove  = []
+        for fn in repo[None].manifest():
+            match = False
+            for dest in destinations:
+                if fnmatch(fn, dest[1]):
+                    match = True
+                    if dest[0] == 'mv':
+                        move_targets[dest[2]].append(fn)
+                    elif dest[0] == 'cp':
+                        copy_targets[dest[2]].append(fn)
+            if not match:
+                remove.append(fn)
+
+        # perform the operations
+        for target,source in copy_targets.items():
+            pats = source + [target]
+            commands.copy(ui, repo, *pats, force = False)
+        for target,source in move_targets.items():
+            pats = source + [target]
+            commands.rename(ui, repo, *pats, force = False)
+        for fn in remove:
+            commands.remove(ui, repo, fn)
         commands.commit(ui, repo,
-                        message=ui.config('subtree', 'move', default_move_comment).format(name=name, destination=destination),
+                        message=ui.config('subtree', 'move', default_move_comment).format(name=name),
                         **commit_opts)
         merge_commit = str(repo[None])
 
@@ -91,3 +120,13 @@ def _parse_hgsubtree(fn):
         result[s] = dict(config.items(s))
 
     return result
+
+def _destinations(s):
+    res = []
+    for x in s.split('\n'):
+        x = x.strip()
+        if len(x) == 0: continue
+        res.append([y.strip() for y in x.split(' ')])
+    return res
+
+
