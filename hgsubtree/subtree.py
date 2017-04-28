@@ -4,22 +4,26 @@
 
 from mercurial import hg, util, commands, cmdutil, error
 from mercurial.i18n import _
+from hgext     import strip
 
 import os, ConfigParser
 from fnmatch     import fnmatch
 from collections import defaultdict
 
 # configurable via subtree/hgsubtree in hgrc
-default_hgsubtree       = '.hgsubtree'
-default_move_comment    = 'subtree: move {name}'
-default_merge_comment   = 'subtree: update {name}'
+default_hgsubtree        = '.hgsubtree'
+default_bookmark_prefix  = 'subtree@'
+default_move_comment     = 'subtree: move {name}'
+default_merge_comment    = 'subtree: update {name}'
+default_collapse_comment = 'subtree: {name}@{rev}'
 
 cmdtable = {}
 command = cmdutil.command(cmdtable)
 
-@command('subpull|sp', [('e', 'edit',   False,  'invoke editor on commit messages'),
-                        ('s', 'source', '',     'use this source instead of the one specified in the config'),
-                        ('r', 'rev',    '',     'use this revision instead of the one specified in the config')],
+@command('subpull|sp', [('e', 'edit',     False,  'invoke editor on commit messages'),
+                        ('s', 'source',   '',     'use this source instead of the one specified in the config'),
+                        ('r', 'rev',      '',     'use this revision instead of the one specified in the config'),
+                        ('',  'no-strip', False,  "don't strip upstream repo after collapse")],
          _('hg subpull [OPTIONS]'))
 def subpull(ui, repo, name = '', **opts):
     """Pull subtree(s)"""
@@ -47,11 +51,14 @@ def subpull(ui, repo, name = '', **opts):
 
     origin = str(repo[None])
     commit_opts = { 'edit': opts['edit'] }
+    bookmark_prefix = ui.config('subtree', 'bookmark', default = default_bookmark_prefix)
 
     for name in names:
         subtree = subtrees[name]
         if 'destination' not in subtree:
             raise error.Abort('No destination found for %s' % name)
+
+        collapse = 'collapse' in subtree and subtree['collapse']
 
         # pull and update -C
         pull_opts = {}
@@ -65,7 +72,27 @@ def subpull(ui, repo, name = '', **opts):
         if tip == repo['tip']:
             ui.status("No changes, nothing for subtree to do")
             continue
-        commands.update(ui, repo, 'tip', clean = True)
+
+        if collapse:
+            # find a matching bookmark
+            bookmark_name = bookmark_prefix + name
+            if bookmark_name in repo._bookmarks:
+                commands.update(ui, repo, bookmark_name, clean = True)
+            else:
+                commands.update(ui, repo, 'null', clean = True)
+
+            # set up the correct file state and commit as a new changeset
+            pulled_tip = repo['tip']
+            commands.revert(ui, repo, rev = 'tip', all = True)
+            commands.commit(ui, repo,
+                            message=ui.config('subtree', 'collapse', default_collapse_comment).format(name=name, rev=str(pulled_tip)[:12]),
+                            **commit_opts)
+            commands.bookmark(ui, repo, bookmark_name, inactive=True)
+
+            if not opts['no_strip']:
+                strip.stripcmd(ui, repo, rev = ['ancestors(%s)' % str(pulled_tip)], bookmark = [])
+        else:
+            commands.update(ui, repo, 'tip', clean = True)
 
         # move or delete
         destinations = _destinations(subtree['destination'])
