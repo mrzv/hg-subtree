@@ -90,6 +90,17 @@ def subpull(ui, repo, name = '', **opts):
             commands.bookmark(ui, repo, bookmark_name, inactive=True)
 
             if not opts['no_strip']:
+                # delete bookmarks on the changesets that will be stripped; not
+                # the most efficient procedure to find them, but will do for now
+                remove_bookmarks = []
+                for k in repo._bookmarks.keys():
+                    ctx = repo[k]
+                    if pulled_tip.ancestor(ctx) == ctx:
+                        remove_bookmarks.append(k)
+
+                for bookmark in remove_bookmarks:
+                    commands.bookmark(ui, repo, bookmark, delete = True)
+
                 strip.stripcmd(ui, repo, rev = ['ancestors(%s)' % str(pulled_tip)], bookmark = [])
         else:
             commands.update(ui, repo, 'tip', clean = True)
