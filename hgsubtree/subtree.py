@@ -17,8 +17,9 @@ default_merge_comment   = 'subtree: update {name}'
 cmdtable = {}
 command = cmdutil.command(cmdtable)
 
-@command('subpull|sp', [('e', 'edit', False, 'invoke editor on commit messages'),
-                        ('r', 'rev',  '',    'use this revision instead of the one specified in the config')],
+@command('subpull|sp', [('e', 'edit',   False,  'invoke editor on commit messages'),
+                        ('s', 'source', '',     'use this source instead of the one specified in the config'),
+                        ('r', 'rev',    '',     'use this revision instead of the one specified in the config')],
          _('hg subpull [OPTIONS]'))
 def subpull(ui, repo, name = '', **opts):
     """Pull subtree(s)"""
@@ -41,6 +42,8 @@ def subpull(ui, repo, name = '', **opts):
             raise error.Abort("Cannot find %s in %s." % (name, hgsubtree))
         names = [name]
     else:
+        if opts['source']:
+            raise error.Abort("Cannot use --source without specifying a repository")
         names = subtrees.keys()
 
     origin = str(repo[None])
@@ -58,7 +61,8 @@ def subpull(ui, repo, name = '', **opts):
         if opts['rev']:
             pull_opts['rev'] = opts['rev']
         tip = repo['tip']
-        commands.pull(ui, repo, source = subtree['source'], force = True, **pull_opts)
+        commands.pull(ui, repo, source = subtree['source'] if not opts['source'] else opts['source'],
+                                force = True, **pull_opts)
         if tip == repo['tip']:
             ui.status("No changes, nothing for subtree to do")
             continue
@@ -128,5 +132,3 @@ def _destinations(s):
         if len(x) == 0: continue
         res.append([y.strip() for y in x.split(' ')])
     return res
-
-
