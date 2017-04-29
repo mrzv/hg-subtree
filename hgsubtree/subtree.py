@@ -96,9 +96,9 @@ def subpull(ui, repo, name = '', **opts):
                     ui.debug("removing %s\n" % fn)
                     commands.remove(ui, repo, fn, force = True)
                     os.remove(fn)
-            commands.commit(ui, repo,
-                            message=ui.config('subtree', 'collapse', default_collapse_comment).format(name=name, rev=str(pulled_tip)[:12]),
-                            **commit_opts)
+            changed = commands.commit(ui, repo,
+                                      message=ui.config('subtree', 'collapse', default_collapse_comment).format(name=name, rev=str(pulled_tip)[:12]),
+                                      **commit_opts)
             commands.bookmark(ui, repo, bookmark_name, inactive=True)
 
             if not opts['no_strip']:
@@ -114,6 +114,11 @@ def subpull(ui, repo, name = '', **opts):
                     commands.bookmark(ui, repo, bookmark, delete = True)
 
                 strip.stripcmd(ui, repo, rev = ['ancestors(%s)' % str(pulled_tip)], bookmark = [])
+
+            if changed == 1:    # nothing changed
+                ui.status("no changes: nothing for subtree to do\n")
+                commands.update(ui, repo, origin[:12])
+                continue
         else:
             commands.update(ui, repo, 'tip', clean = True)
 
