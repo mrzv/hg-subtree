@@ -150,7 +150,7 @@ def subpull(ui, repo, name = '', **opts):
         commands.commit(ui, repo,
                         message=ui.config('subtree', 'merge', default_merge_comment).format(name=name),
                         **commit_opts)
-        origin = repo[None]
+        origin = str(repo[None])
 
 def _parse_hgsubtree(fn):
     config = ConfigParser.SafeConfigParser()
