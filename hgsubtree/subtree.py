@@ -54,6 +54,7 @@ def subpull(ui, repo, name = '', **opts):
             raise error.Abort("Cannot use --source without specifying a repository")
         names = subtrees.keys()
 
+    null = repo['null']
     origin = str(repo[None])
     commit_opts = { 'edit': opts['edit'] }
     bookmark_prefix = ui.config('subtree', 'bookmark', default = default_bookmark_prefix)
@@ -115,7 +116,7 @@ def subpull(ui, repo, name = '', **opts):
                 remove_bookmarks = []
                 for k in repo._bookmarks.keys():
                     ctx = repo[k]
-                    if pulled_tip.ancestor(ctx) == ctx:
+                    if pulled_tip.ancestor(ctx) != null:
                         remove_bookmarks.append(k)
 
                 for bookmark in remove_bookmarks:
