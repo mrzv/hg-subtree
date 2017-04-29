@@ -28,8 +28,13 @@ command = cmdutil.command(cmdtable)
 def subpull(ui, repo, name = '', **opts):
     """Pull subtree(s)"""
 
+    # change to root directory
+    if repo.getcwd() != '':
+        ui.warn("Working directory is not repository root. At best, this directory won't exist when subpull is done.\n")
+        repo.dirstate._cwd = repo.root
+        os.chdir(repo.root)
+
     # if there are uncommitted change, abort --- we will be modifying the working copy quite drammatically
-    # TODO: need to make sure repo.status() runs in the root directory, not in the current working dir
     modified, added, removed, deleted, _unknown, _ignored, _clean = repo.status()
     if modified or added or removed or deleted:
         raise error.Abort("Uncommitted changes in the working copy. Subtree extension needs to modify the working copy, so it cannot proceed.")
@@ -70,7 +75,7 @@ def subpull(ui, repo, name = '', **opts):
         commands.pull(ui, repo, source = subtree['source'] if not opts['source'] else opts['source'],
                                 force = True, **pull_opts)
         if tip == repo['tip']:
-            ui.status("No changes, nothing for subtree to do\n")
+            ui.status("no changes: nothing for subtree to do\n")
             continue
 
         if collapse:
