@@ -2,7 +2,7 @@
 
 """Subtree repository management for Mercurial."""
 
-from mercurial import hg, util, commands, cmdutil, error
+from mercurial import hg, util, commands, cmdutil, error, localrepo, ui as uimod
 from mercurial.i18n import _
 from hgext     import strip
 
@@ -57,6 +57,7 @@ def subpull(ui, repo, name = '', **opts):
     origin = str(repo[None])
     commit_opts = { 'edit': opts['edit'] }
     bookmark_prefix = ui.config('subtree', 'bookmark', default = default_bookmark_prefix)
+    nocache = ui.config('subtree', 'nocache', default = '')
 
     for name in names:
         subtree = subtrees[name]
@@ -65,19 +66,26 @@ def subpull(ui, repo, name = '', **opts):
 
         collapse = 'collapse' in subtree and subtree['collapse']
 
-        # pull and update -C
+        # figure out the revision to pull
         pull_opts = {}
         if 'rev' in subtree:
             pull_opts['rev'] = [subtree['rev']]
         if opts['rev']:
             pull_opts['rev'] = opts['rev']
+
+        # clone or pull into cache
+        source = subtree['source'] if not opts['source'] else opts['source']
+        if not nocache:
+            source = _clone_or_pull(ui, repo, name, source, pull_opts)
+
+        # pull
         tip = repo['tip']
-        commands.pull(ui, repo, source = subtree['source'] if not opts['source'] else opts['source'],
-                                force = True, **pull_opts)
+        commands.pull(ui, repo, source = source, force = True, **pull_opts)
         if tip == repo['tip']:
             ui.status("no changes: nothing for subtree to do\n")
             continue
 
+        # collapse or update -C
         if collapse:
             # find a matching bookmark
             bookmark_name = bookmark_prefix + name
@@ -171,3 +179,18 @@ def _destinations(s):
         if len(x) == 0: continue
         res.append([y.strip() for y in x.split(' ')])
     return res
+
+def _clone_or_pull(ui, repo, name, source, pull_opts):
+    cache_path = os.path.join(repo.path, 'subtree-cache')
+    if not os.path.exists(cache_path):
+        os.makedirs(cache_path)
+
+    subrepo_cache = os.path.join(cache_path, name)
+    if not os.path.exists(subrepo_cache):
+        os.makedirs(subrepo_cache)
+        ui.status("initializing clean cache repo for %s in %s\n" % (name, subrepo_cache))
+        commands.init(ui, subrepo_cache)
+    cache_repo = hg.repository(ui, path = subrepo_cache)
+    commands.pull(ui, cache_repo, source = source, **pull_opts)
+
+    return subrepo_cache

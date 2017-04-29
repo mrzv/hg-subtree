@@ -48,7 +48,12 @@ bookmark = subtree@
 move     = subtree: move {name}
 merge    = subtree: update {name}
 collapse = subtree: {name}@{rev}
+nocache  =
 ```
+
+By default, hg-subtree caches subrepositories in .hg/subtree-cache (this helps
+both with collapsed changesets and git subrepositories). This behavior can be
+disabled by setting `nocache = True`.
 
 ## Setup
 
