@@ -69,7 +69,7 @@ its own section. The two main options to set are `source` and `destination`:
 source = ssh://.../path/to/sub
 destination:
     mkdir ext/sub
-    mv * ext/sub
+    mv glob:** ext/sub
 ```
 
 Optionally:

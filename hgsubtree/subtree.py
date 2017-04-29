@@ -113,37 +113,21 @@ def subpull(ui, repo, name = '', **opts):
         # move or delete
         destinations = _destinations(subtree['destination'])
 
-        # create directories
+        # process destinations
         for dest in destinations:
-            if dest[0] == 'mkdir' and not os.path.exists(dest[1]):
-                os.makedirs(dest[1])
+            if dest[0] == 'mkdir':
+                if not os.path.exists(dest[1]):
+                    os.makedirs(dest[1])
+            elif dest[0] == 'mv':
+                commands.rename(ui, repo, *dest[1:], force = False)
+            elif dest[0] == 'cp':
+                commands.copy(ui, repo, *dest[1:], force = False)
 
-        # resolve move, copy, and delete operations
-        destinations = [dest for dest in destinations if dest[0] == 'mv' or dest[0] == 'cp']
-        move_targets = defaultdict(list)
-        copy_targets = defaultdict(list)
-        remove  = []
-        for fn in repo[None].manifest():
-            match = False
-            for dest in destinations:
-                if fnmatch(fn, dest[1]):
-                    match = True
-                    if dest[0] == 'mv':
-                        move_targets[dest[2]].append(fn)
-                    elif dest[0] == 'cp':
-                        copy_targets[dest[2]].append(fn)
-            if not match:
-                remove.append(fn)
-
-        # perform the operations
-        for target,source in copy_targets.items():
-            pats = source + [target]
-            commands.copy(ui, repo, *pats, force = False)
-        for target,source in move_targets.items():
-            pats = source + [target]
-            commands.rename(ui, repo, *pats, force = False)
-        for fn in remove:
+        # remove all untouched files
+        _modified, _added, _removed, _deleted, _unknown, _ignored, clean = repo.status(clean = True)
+        for fn in clean:
             commands.remove(ui, repo, fn)
+
         commands.commit(ui, repo,
                         message=ui.config('subtree', 'move', default_move_comment).format(name=name),
                         **commit_opts)
