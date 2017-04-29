@@ -70,7 +70,7 @@ def subpull(ui, repo, name = '', **opts):
         commands.pull(ui, repo, source = subtree['source'] if not opts['source'] else opts['source'],
                                 force = True, **pull_opts)
         if tip == repo['tip']:
-            ui.status("No changes, nothing for subtree to do")
+            ui.status("No changes, nothing for subtree to do\n")
             continue
 
         if collapse:
