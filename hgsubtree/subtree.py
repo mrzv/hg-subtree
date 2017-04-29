@@ -89,6 +89,13 @@ def subpull(ui, repo, name = '', **opts):
             # set up the correct file state and commit as a new changeset
             pulled_tip = repo['tip']
             commands.revert(ui, repo, rev = 'tip', all = True)
+            hgsubrepo_meta = [os.path.join(repo.root, '.hgsubstate'),
+                              os.path.join(repo.root, '.hgsub')]
+            for fn in hgsubrepo_meta:
+                if os.path.exists(fn):
+                    ui.debug("removing %s\n" % fn)
+                    commands.remove(ui, repo, fn, force = True)
+                    os.remove(fn)
             commands.commit(ui, repo,
                             message=ui.config('subtree', 'collapse', default_collapse_comment).format(name=name, rev=str(pulled_tip)[:12]),
                             **commit_opts)
