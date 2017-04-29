@@ -75,7 +75,10 @@ destination:
 Optionally:
 ```
 collapse = True
+rev = master
 ```
+
+`collapse` is explained below. `rev` specifies which revision to pull.
 
 ## Usage
 
