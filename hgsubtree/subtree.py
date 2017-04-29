@@ -135,10 +135,11 @@ def subpull(ui, repo, name = '', **opts):
             elif dest[0] == 'cp':
                 commands.copy(ui, repo, *dest[1:], force = False)
 
-        # remove all untouched files
-        _modified, _added, _removed, _deleted, _unknown, _ignored, clean = repo.status(clean = True)
-        for fn in clean:
-            commands.remove(ui, repo, fn)
+        # remove all untouched files, unless instructed to keep them
+        if 'keep' not in subtree or not subtree['keep']:
+            _modified, _added, _removed, _deleted, _unknown, _ignored, clean = repo.status(clean = True)
+            for fn in clean:
+                commands.remove(ui, repo, fn)
 
         commands.commit(ui, repo,
                         message=ui.config('subtree', 'move', default_move_comment).format(name=name),

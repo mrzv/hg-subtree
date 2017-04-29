@@ -76,9 +76,13 @@ Optionally:
 ```
 collapse = True
 rev = master
+keep = True
 ```
 
 `collapse` is explained below. `rev` specifies which revision to pull.
+`keep` specifies whether to keep (as opposed to the default remove)
+the files untouched by the moves/copies during the repository re-organization
+prescribed in `destination`.
 
 ## Usage
 
