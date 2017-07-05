@@ -143,6 +143,9 @@ def subpull(ui, repo, name = '', **opts):
                 commands.rename(ui, repo, *dest[1:], force = False)
             elif dest[0] == 'cp':
                 commands.copy(ui, repo, *dest[1:], force = False)
+            elif dest[0] == 'rm':
+                commands.remove(ui, repo, *dest[1:], force = False)
+
 
         # remove all untouched files, unless instructed to keep them
         if 'keep' not in subtree or not subtree['keep']:
