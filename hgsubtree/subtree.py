@@ -135,6 +135,7 @@ def subpull(ui, repo, name = '', **opts):
         destinations = _destinations(subtree['destination'])
 
         # process destinations
+        keep_list = []
         for dest in destinations:
             if dest[0] == 'mkdir':
                 if not os.path.exists(dest[1]):
@@ -145,13 +146,18 @@ def subpull(ui, repo, name = '', **opts):
                 commands.copy(ui, repo, *dest[1:], force = False)
             elif dest[0] == 'rm':
                 commands.remove(ui, repo, *dest[1:], force = False)
-
+            elif dest[0] == 'keep':
+                keep_list.append(' '.join(dest[1:]))
 
         # remove all untouched files, unless instructed to keep them
         if 'keep' not in subtree or not subtree['keep']:
             _modified, _added, _removed, _deleted, _unknown, _ignored, clean = repo.status(clean = True)
             for fn in clean:
-                commands.remove(ui, repo, fn)
+                for keep_pattern in keep_list:
+                    if fnmatch(fn, keep_pattern):
+                        break
+                else:
+                    commands.remove(ui, repo, fn)
 
         commands.commit(ui, repo,
                         message=ui.config('subtree', 'move', default_move_comment).format(name=name),
