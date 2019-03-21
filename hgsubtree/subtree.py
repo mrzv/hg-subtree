@@ -2,7 +2,7 @@
 
 """Subtree repository management for Mercurial."""
 
-from mercurial import hg, util, commands, cmdutil, error, localrepo, ui as uimod
+from mercurial import hg, util, commands, cmdutil, error, localrepo, ui as uimod, registrar
 from mercurial.i18n import _
 from hgext     import strip
 
@@ -18,7 +18,7 @@ default_merge_comment    = 'subtree: update {name}'
 default_collapse_comment = 'subtree: {name}@{rev}'
 
 cmdtable = {}
-command = cmdutil.command(cmdtable)
+command = registrar.command(cmdtable)
 
 @command('subpull|sp', [('e', 'edit',     False,  'invoke editor on commit messages'),
                         ('s', 'source',   '',     'use this source instead of the one specified in the config'),
